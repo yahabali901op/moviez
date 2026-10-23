@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AnimeWorld — Watch Movies</title>
+<style>
+:root{color-scheme:dark;--bg:#090b10;--panel:#151923;--muted:#a9b0bf;--accent:#e50914}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:#fff;font:16px system-ui,Arial,sans-serif}
+header{position:sticky;top:0;background:#090b10ee;backdrop-filter:blur(10px);z-index:2;border-bottom:1px solid #242936}
+nav{max-width:1150px;margin:auto;padding:15px 18px;display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+.brand{font-size:1.35rem;font-weight:900;color:var(--accent);margin-right:auto}
+a{color:#fff}input,select,button{font:inherit;border-radius:9px;padding:11px;border:1px solid #343a49;background:#171b25;color:#fff}
+input{min-width:190px;flex:1}button{cursor:pointer;background:var(--accent);border:0;font-weight:700}
+main{max-width:1150px;margin:auto;padding:22px 18px}.hero{padding:35px 24px;border-radius:18px;background:linear-gradient(100deg,#301015,#151923 70%);margin-bottom:24px}
+.hero h1{font-size:clamp(2rem,6vw,3.5rem);margin:0 0 8px}.muted{color:var(--muted)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:16px}
+.movie{background:var(--panel);border:1px solid #252b38;border-radius:12px;overflow:hidden;cursor:pointer}
+.movie img{width:100%;aspect-ratio:2/3;object-fit:cover;background:#222}.movie .info{padding:10px}.movie h3{font-size:1rem;margin:0 0 5px}.movie p{font-size:.84rem;margin:0;color:var(--muted)}
+#playerWrap{display:none;background:#000;border-radius:14px;padding:12px;margin:20px 0}
+video,iframe{width:100%;max-height:70vh;aspect-ratio:16/9;border:0;background:#000;border-radius:8px}
+footer{padding:28px;text-align:center;color:var(--muted);font-size:.85rem}
+@media(max-width:560px){nav{gap:8px}nav input{order:3;flex-basis:100%}.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+</style>
+</head>
+<body>
+<header><nav><div class="brand">ANIMEWORLD</div><input id="search" placeholder="Search movies..." aria-label="Search movies"><select id="category" aria-label="Filter category"><option value="">All categories</option><option>Anime</option><option>Action</option><option>Comedy</option><option>Drama</option><option>Romance</option><option>Other</option></select><a href="admin.html">Admin</a></nav></header>
+<main>
+<section class="hero"><p class="muted">YOUR MOVIE DESTINATION</p><h1>Find your next story.</h1><p class="muted">Browse the collection and watch movies online.</p></section>
+<section id="playerWrap"><h2 id="playingTitle">Now playing</h2><video id="player" controls playsinline></video><p><button id="closePlayer" type="button">Close player</button></p></section>
+<h2>Movies</h2><p id="status" class="muted">Loading movies…</p><section id="movies" class="grid"></section>
+</main><footer>Only movies you have permission to publish should be uploaded.</footer>
+<script type="module">
+import { db } from './firebase.js';
+import { collection, getDocs, query, where, orderBy } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+const grid=document.querySelector('#movies'),status=document.querySelector('#status'),search=document.querySelector('#search'),category=document.querySelector('#category');
+let all=[];
+function render(){
+ const term=search.value.trim().toLowerCase(),cat=category.value;
+ const list=all.filter(m=>(m.title||'').toLowerCase().includes(term)&&(!cat||m.category===cat));
+ grid.replaceChildren();
+ if(!list.length){status.textContent=all.length?'No matching movies.':'No movies published yet.';return}
+ status.textContent=`${list.length} movie${list.length===1?'':'s'}`;
+ for(const m of list){
+  const card=document.createElement('article');card.className='movie';
+  const img=document.createElement('img');img.loading='lazy';img.alt=(m.title||'Movie')+' poster';img.src=m.posterUrl||'https://placehold.co/400x600/151923/ffffff?text=Movie';
+  const info=document.createElement('div');info.className='info';
+  const h=document.createElement('h3');h.textContent=m.title||'Untitled';
+  const p=document.createElement('p');p.textContent=m.category||'Other';
+  info.append(h,p);card.append(img,info);card.addEventListener('click',()=>play(m));grid.append(card);
+ }
+}
+function play(m){
+ const url=m.videoUrl||'';if(!url){alert('This movie has no video link yet.');return}
+ const wrap=document.querySelector('#playerWrap'),video=document.querySelector('#player');
+ document.querySelector('#playingTitle').textContent=m.title||'Now playing';
+ if(/youtube\.com|youtu\.be|vimeo\.com/i.test(url)){
+  alert('For this starter, use a direct MP4 video URL. YouTube/Vimeo links need an embedded-player setup.');
+  return;
+ }
+ video.src=url;wrap.style.display='block';wrap.scrollIntoView({behavior:'smooth'});video.play().catch(()=>{});
+}
+document.querySelector('#closePlayer').addEventListener('click',()=>{const v=document.querySelector('#player');v.pause();v.removeAttribute('src');v.load();document.querySelector('#playerWrap').style.display='none'});
+search.addEventListener('input',render);category.addEventListener('change',render);
+try{
+ const q=query(collection(db,'movies'),where('published','==',true),orderBy('createdAt','desc'));
+ const snap=await getDocs(q);all=snap.docs.map(d=>({id:d.id,...d.data()}));render();
+}catch(e){console.error(e);status.textContent='Could not load movies. Check firebase.js and Firestore rules/configuration.'}
+</script></body></html>

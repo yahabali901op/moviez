@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Admin — AnimeWorld</title>
+<style>
+body{margin:0;background:#090b10;color:#fff;font:16px system-ui,Arial;padding:20px}main{max-width:650px;margin:25px auto;background:#151923;padding:22px;border-radius:14px}h1{color:#e50914}input,select,textarea,button{display:block;width:100%;padding:12px;margin:9px 0;border-radius:8px;border:1px solid #343a49;background:#0d1119;color:white;font:inherit}button{background:#e50914;border:0;font-weight:bold;cursor:pointer}.muted{color:#a9b0bf}.hidden{display:none}.item{border-top:1px solid #343a49;padding:12px 0;overflow-wrap:anywhere}.danger{background:#555}a{color:#fff}
+</style></head><body><main><a href="index.html">← Back to website</a><h1>Admin panel</h1><p class="muted">Only the account whose UID is configured as ADMIN_UID can upload or remove movies.</p>
+<section id="loginBox"><h2>Admin login</h2><form id="loginForm"><input id="email" type="email" placeholder="Admin email" required><input id="password" type="password" placeholder="Password" required><button>Sign in</button></form></section>
+<section id="panel" class="hidden"><p id="who"></p><button id="logout" class="danger" type="button">Sign out</button><h2>Add a movie</h2>
+<form id="movieForm"><input id="title" placeholder="Movie title" required><textarea id="description" placeholder="Short description"></textarea>
+<select id="category"><option>Anime</option><option>Action</option><option>Comedy</option><option>Drama</option><option>Romance</option><option>Other</option></select>
+<label>Poster image file (optional)</label><input id="posterFile" type="file" accept="image/*">
+<label>Movie video file (MP4 recommended)</label><input id="videoFile" type="file" accept="video/mp4,video/webm" required>
+<button id="uploadBtn">Upload and publish</button></form><p id="status" class="muted"></p><h2>Published movies</h2><div id="list"></div></section>
+</main>
+<script type="module">
+import { auth, db, storage, ADMIN_UID } from './firebase.js';
+import { signInWithEmailAndPassword,onAuthStateChanged,signOut } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+import { collection,addDoc,getDocs,query,where,orderBy,deleteDoc,doc,serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import { ref,uploadBytesResumable,getDownloadURL,deleteObject } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js';
+const loginBox=document.querySelector('#loginBox'),panel=document.querySelector('#panel'),status=document.querySelector('#status');
+let isAdmin=false;
+document.querySelector('#loginForm').addEventListener('submit',async e=>{e.preventDefault();try{await signInWithEmailAndPassword(auth,email.value,password.value)}catch(err){alert('Login failed: '+err.message)}});
+document.querySelector('#logout').addEventListener('click',()=>signOut(auth));
+onAuthStateChanged(auth,async user=>{
+ isAdmin=!!user&&!!ADMIN_UID&&user.uid===ADMIN_UID;
+ loginBox.classList.toggle('hidden',isAdmin);panel.classList.toggle('hidden',!isAdmin);
+ if(user&&!isAdmin){status.textContent='This account is not authorized as admin.';await signOut(auth);return}
+ if(isAdmin){document.querySelector('#who').textContent='Signed in as admin: '+user.email;await loadMovies()}
+});
+async function uploadFile(file,path){
+ const task=uploadBytesResumable(ref(storage,path),file);
+ await new Promise((resolve,reject)=>task.on('state_changed',s=>{status.textContent=`Uploading ${file.name}: ${Math.round(s.bytesTransferred/s.totalBytes*100)}%`},reject,resolve));
+ return getDownloadURL(task.snapshot.ref);
+}
+document.querySelector('#movieForm').addEventListener('submit',async e=>{
+ e.preventDefault();if(!isAdmin){status.textContent='Admin access required.';return}
+ const btn=document.querySelector('#uploadBtn');btn.disabled=true;
+ try{
+  const title=document.querySelector('#title').value.trim(),description=document.querySelector('#description').value.trim(),category=document.querySelector('#category').value;
+  const vf=document.querySelector('#videoFile').files[0],pf=document.querySelector('#posterFile').files[0];
+  if(!vf)throw new Error('Choose a video file.');
+  const id=crypto.randomUUID();
+  const videoUrl=await uploadFile(vf,`movies/${id}/${vf.name}`);
+  let posterUrl='';if(pf)posterUrl=await uploadFile(pf,`posters/${id}/${pf.name}`);
+  await addDoc(collection(db,'movies'),{title,description,category,videoUrl,posterUrl,published:true,createdAt:serverTimestamp(),createdBy:auth.currentUser.uid});
+  status.textContent='Movie published successfully.';e.target.reset();await loadMovies();
+ }catch(err){console.error(err);status.textContent='Upload failed: '+err.message}
+ finally{btn.disabled=false}
+});
+async function loadMovies(){
+ const q=query(collection(db,'movies'),where('published','==',true),orderBy('createdAt','desc'));
+ const snap=await getDocs(q),list=document.querySelector('#list');list.replaceChildren();
+ snap.forEach(d=>{
+  const m=d.data(),item=document.createElement('div');item.className='item';
+  const name=document.createElement('strong');name.textContent=m.title||'Untitled';
+  const del=document.createElement('button');del.className='danger';del.textContent='Delete';del.type='button';
+  del.addEventListener('click',async()=>{if(!confirm(`Delete "${m.title}"?`))return;try{
+    await deleteDoc(doc(db,'movies',d.id));
+    // Storage files are cleaned up by admin manually if their paths are unknown.
+    await loadMovies();status.textContent='Movie record deleted.';
+  }catch(err){status.textContent='Delete failed: '+err.message}});
+  item.append(name,del);list.append(item)
+ });
+ if(!snap.size)list.textContent='No published movies yet.';
+}
+</script></body></html>
