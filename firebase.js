@@ -5,13 +5,15 @@ import { getAuth } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-aut
 import { getFirestore } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { getStorage } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js';
 
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: 'PASTE_YOUR_FIREBASE_API_KEY',
-  authDomain: 'YOUR_PROJECT_ID.firebaseapp.com',
-  projectId: 'YOUR_PROJECT_ID',
-  storageBucket: 'YOUR_PROJECT_ID.appspot.com',
-  messagingSenderId: 'PASTE_YOUR_MESSAGING_SENDER_ID',
-  appId: 'PASTE_YOUR_FIREBASE_APP_ID'
+  apiKey: "AIzaSyCoekFd-DfeypBkSfmhCcVLg2s4N4Z1BL0",
+  authDomain: "animeworld-e8424.firebaseapp.com",
+  projectId: "animeworld-e8424",
+  storageBucket: "animeworld-e8424.firebasestorage.app",
+  messagingSenderId: "982148190554",
+  appId: "1:982148190554:web:978f19e60c620fc4d6e363",
+  measurementId: "G-YNQNW5FNG9"
 };
 
 // Paste the UID of your own admin account from Firebase Authentication.
