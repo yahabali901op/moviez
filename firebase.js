@@ -17,7 +17,7 @@ const firebaseConfig = {
 };
 
 // Paste the UID of your own admin account from Firebase Authentication.
-export const ADMIN_UID = 'REPLACE_WITH_ADMIN_UID';
+export const ADMIN_UID = 'NTnbJ0CqZ2Mk2jsxWmLEzaM34Rm2';
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
